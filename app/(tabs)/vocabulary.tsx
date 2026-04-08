@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useVocabulary, type VocabStats } from '@/src/features/vocabulary/hooks/useVocabulary';
 import { useWordAudio } from '@/src/features/vocabulary/hooks/useWordAudio';
 import { WordDetailSheet } from '@/src/features/vocabulary/components/WordDetailSheet';
-import { FadeInView } from '@/src/shared/components/FadeInView';
 import type { BottomSheetModalRef } from '@/src/shared/components/BottomSheetModal';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
 import type { Word } from '@/src/types/quran';
@@ -198,50 +197,52 @@ export default function VocabularyScreen() {
           <MilestoneMarker pct={100} current={coveragePct} />
         </View>
       </View>
-
-      {/* Search + Filter */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={colors.midnight[300]} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="শব্দ খুঁজুন..."
-            placeholderTextColor={colors.midnight[300]}
-            value={search}
-            onChangeText={setSearch}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => { setSearch(''); vocab.loadWords({ limit: 800 }); }}>
-              <Ionicons name="close-circle" size={18} color={colors.midnight[300]} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.filterRow}>
-        {(['all', 'unlearned', 'learned'] as FilterMode[]).map((mode) => (
-          <Pressable
-            key={mode}
-            style={[styles.filterChip, filter === mode && styles.filterChipActive]}
-            onPress={() => setFilter(mode)}
-          >
-            <Text style={[styles.filterText, filter === mode && styles.filterTextActive]}>
-              {mode === 'all' ? 'সব' : mode === 'learned' ? '✓ শেখা' : '○ না শেখা'}
-            </Text>
-          </Pressable>
-        ))}
-        <Text style={styles.filterCount}>{filteredWords.length}টি শব্দ</Text>
-      </View>
     </>
-  ), [coveragePct, stats.learnedCount, progressBarW, search, filter, filteredWords.length, handleSearch, vocab.loadWords]);
+  ), [coveragePct, stats.learnedCount, progressBarW]);
 
   return (
     <View style={styles.screen}>
+      {/* Fixed search + filter */}
+      <View style={styles.searchFilterFixed}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color={colors.midnight[300]} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="শব্দ খুঁজুন..."
+              placeholderTextColor={colors.midnight[300]}
+              value={search}
+              onChangeText={setSearch}
+              onSubmitEditing={handleSearch}
+              returnKeyType="search"
+            />
+            {search.length > 0 && (
+              <Pressable onPress={() => { setSearch(''); vocab.loadWords({ limit: 800 }); }}>
+                <Ionicons name="close-circle" size={18} color={colors.midnight[300]} />
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.filterRow}>
+          {(['all', 'unlearned', 'learned'] as FilterMode[]).map((mode) => (
+            <Pressable
+              key={mode}
+              style={[styles.filterChip, filter === mode && styles.filterChipActive]}
+              onPress={() => setFilter(mode)}
+            >
+              <Text style={[styles.filterText, filter === mode && styles.filterTextActive]}>
+                {mode === 'all' ? 'সব' : mode === 'learned' ? '✓ শেখা' : '○ না শেখা'}
+              </Text>
+            </Pressable>
+          ))}
+          <Text style={styles.filterCount}>{filteredWords.length}টি শব্দ</Text>
+        </View>
+      </View>
+
       {/* Word list */}
       {vocab.loading && vocab.words.length === 0 ? (
-        <ActivityIndicator size="large" color={colors.sakina[500]} style={{ marginTop: 120 }} />
+        <ActivityIndicator size="large" color={colors.sakina[500]} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={filteredWords}
@@ -252,7 +253,6 @@ export default function VocabularyScreen() {
           showsVerticalScrollIndicator={false}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
-          stickyHeaderIndices={[]}
         />
       )}
 
@@ -290,8 +290,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.nur[50],
   },
+  searchFilterFixed: {
+    backgroundColor: colors.nur[50],
+    paddingTop: 8,
+    zIndex: 1,
+  },
   header: {
-    paddingTop: 60,
+    paddingTop: 16,
     paddingHorizontal: 24,
     paddingBottom: 8,
   },
@@ -382,13 +387,6 @@ const styles = StyleSheet.create({
   milestoneReached: {
     color: colors.nur[600],
     fontWeight: '700',
-  },
-  heroMotivation: {
-    fontSize: 13,
-    fontFamily: fonts.bengali,
-    color: colors.midnight[500],
-    textAlign: 'center',
-    lineHeight: 22,
   },
 
   // Search
