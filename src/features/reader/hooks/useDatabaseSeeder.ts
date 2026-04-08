@@ -6,7 +6,7 @@
 import { useCallback, useState } from 'react';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
-import type * as SQLite from 'expo-sqlite';
+import type { AppDatabase } from '@/src/shared/lib/database';
 import type {
   RawSurahsResponse,
   RawAyahsResponse,
@@ -37,7 +37,7 @@ async function loadJsonAsset<T>(module: number): Promise<T> {
 /**
  * Check if the database already has all 114 surahs seeded.
  */
-async function isDatabaseSeeded(db: SQLite.SQLiteDatabase): Promise<boolean> {
+async function isDatabaseSeeded(db: AppDatabase): Promise<boolean> {
   const result = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM surahs'
   );
@@ -47,7 +47,7 @@ async function isDatabaseSeeded(db: SQLite.SQLiteDatabase): Promise<boolean> {
 /**
  * Master seeding function — checks if DB is empty, then seeds in a single transaction.
  */
-export async function seedDatabaseIfEmpty(db: SQLite.SQLiteDatabase): Promise<void> {
+export async function seedDatabaseIfEmpty(db: AppDatabase): Promise<void> {
   const alreadySeeded = await isDatabaseSeeded(db);
 
   if (alreadySeeded) {
@@ -132,7 +132,7 @@ export function useDatabaseSeeder() {
     error: null,
   });
 
-  const seed = useCallback(async (db: SQLite.SQLiteDatabase) => {
+  const seed = useCallback(async (db: AppDatabase) => {
     setState({ isSeeding: true, isSeeded: false, error: null });
 
     try {

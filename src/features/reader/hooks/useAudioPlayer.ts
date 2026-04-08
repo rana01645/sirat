@@ -78,12 +78,8 @@ function getBengaliAudioBaseUrl(): string {
     const host = debuggerHost.split(':')[0];
     return `http://${host}:8081/assets/assets/audio/bn-translation-gcloud`;
   }
-  // Web: relative path works
-  if (Platform.OS === 'web') {
-    return '/assets/audio/bn-translation-gcloud';
-  }
-  // Production fallback — replace with your CDN URL
-  return 'https://your-cdn.com/quran/audio/bn';
+  // Production: hosted on sirat.bd CDN
+  return 'https://sirat.bd/audio/bn';
 }
 
 function getBengaliAudioUri(surahId: number, verseNumber: number): string {
@@ -105,6 +101,7 @@ export function useAudioPlayer(ayahs: Ayah[]) {
   const sequentialIndexRef = useRef<number>(-1);
   const isMountedRef = useRef(true);
   const isStoppingRef = useRef(false);
+  const audioModeRef = useRef<AudioMode>('arabic');
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -185,15 +182,15 @@ export function useAudioPlayer(ayahs: Ayah[]) {
 
   // Play a single ayah in the current mode
   const playAyah = useCallback(async (ayah: Ayah, mode?: AudioMode) => {
-    const m = mode ?? state.audioMode;
+    const m = mode ?? audioModeRef.current;
     isStoppingRef.current = false;
     safeSetState({ audioMode: m, isSequentialMode: false, audioProgress: 0 });
     await playAudioFile(ayah, m);
-  }, [state.audioMode, playAudioFile, safeSetState]);
+  }, [playAudioFile, safeSetState]);
 
   // Play sequentially from a given ayah through the rest of the surah
   const playSequential = useCallback(async (startAyah: Ayah, mode?: AudioMode) => {
-    const m = mode ?? state.audioMode;
+    const m = mode ?? audioModeRef.current;
     isStoppingRef.current = false;
     safeSetState({ audioMode: m, isSequentialMode: true });
 
@@ -212,7 +209,7 @@ export function useAudioPlayer(ayahs: Ayah[]) {
     if (isMountedRef.current) {
       safeSetState({ playbackState: 'idle', currentAyahId: null, isSequentialMode: false, audioProgress: 0 });
     }
-  }, [ayahs, state.audioMode, playAudioFile, safeSetState]);
+  }, [ayahs, playAudioFile, safeSetState]);
 
   // Pause/resume
   const togglePause = useCallback(async () => {
@@ -238,6 +235,7 @@ export function useAudioPlayer(ayahs: Ayah[]) {
 
   // Change audio mode
   const setAudioMode = useCallback((mode: AudioMode) => {
+    audioModeRef.current = mode;
     safeSetState({ audioMode: mode });
   }, [safeSetState]);
 

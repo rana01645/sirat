@@ -4,7 +4,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { Audio } from 'expo-av';
-import type * as SQLite from 'expo-sqlite';
+import type { AppDatabase } from '@/src/shared/lib/database';
 
 type WordAudioState = 'idle' | 'loading' | 'playing';
 
@@ -17,7 +17,7 @@ function getWordAudioUrl(surahId: number, verseNumber: number, wordPosition: num
 }
 
 /** Lightweight audio hook — no context providers needed. Pass db explicitly for word-id lookups. */
-export function useWordAudio(db?: SQLite.SQLiteDatabase) {
+export function useWordAudio(db?: AppDatabase) {
   const [audioState, setAudioState] = useState<WordAudioState>('idle');
   const [playingWordId, setPlayingWordId] = useState<number | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);

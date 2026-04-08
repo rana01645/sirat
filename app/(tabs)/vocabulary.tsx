@@ -161,111 +161,98 @@ export default function VocabularyScreen() {
   const { stats } = vocab;
   const coveragePct = stats.topCoveragePercent;
 
-  return (
-    <View style={styles.screen}>
+  const listHeader = useMemo(() => (
+    <>
       {/* Header */}
-      <FadeInView delay={0} slideUp>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>কুরআনের শব্দভান্ডার</Text>
-          <Text style={styles.headerSub}>শব্দ শিখুন, কুরআন বুঝুন</Text>
-        </View>
-      </FadeInView>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>কুরআনের শব্দভান্ডার</Text>
+        <Text style={styles.headerSub}>শব্দ শিখুন, কুরআন বুঝুন</Text>
+      </View>
 
       {/* Coverage hero card */}
-      <FadeInView delay={100} slideUp>
-        <View style={styles.heroCard}>
-          <View style={styles.heroTop}>
-            <View style={styles.heroStatMain}>
-              <Text style={styles.heroPct}>{coveragePct.toFixed(1)}%</Text>
-              <Text style={styles.heroLabel}>কুরআন বুঝতে পারবেন</Text>
-            </View>
-            <View style={styles.heroStatSide}>
-              <Text style={styles.heroCount}>{stats.learnedCount}</Text>
-              <Text style={styles.heroCountLabel}>শব্দ শিখেছেন</Text>
-            </View>
+      <View style={styles.heroCard}>
+        <View style={styles.heroTop}>
+          <View style={styles.heroStatMain}>
+            <Text style={styles.heroPct}>{coveragePct.toFixed(1)}%</Text>
+            <Text style={styles.heroLabel}>কুরআন বুঝতে পারবেন</Text>
           </View>
-
-          {/* Progress bar */}
-          <View
-            style={styles.progressTrack}
-            onLayout={(e: LayoutChangeEvent) => setProgressBarW(e.nativeEvent.layout.width)}
-          >
-            <View style={[styles.progressFill, { width: progressBarW * (coveragePct / 100) }]} />
+          <View style={styles.heroStatSide}>
+            <Text style={styles.heroCount}>{stats.learnedCount}</Text>
+            <Text style={styles.heroCountLabel}>শব্দ শিখেছেন</Text>
           </View>
-
-          {/* Milestone markers */}
-          <View style={styles.milestones}>
-            <MilestoneMarker pct={25} current={coveragePct} />
-            <MilestoneMarker pct={50} current={coveragePct} />
-            <MilestoneMarker pct={75} current={coveragePct} />
-            <MilestoneMarker pct={100} current={coveragePct} />
-          </View>
-
-          {/* Motivational message */}
-          <Text style={styles.heroMotivation}>
-            {coveragePct < 10
-              ? '🌱 শুরুটা সবচেয়ে গুরুত্বপূর্ণ! প্রতিটি শব্দই একটি পদক্ষেপ।'
-              : coveragePct < 25
-              ? '📖 দুর্দান্ত শুরু! আরো কিছু শব্দ শিখলেই অনেক আয়াত বুঝতে পারবেন।'
-              : coveragePct < 50
-              ? '🌟 মাশাআল্লাহ! কুরআনের এক-চতুর্থাংশ বুঝতে পারছেন!'
-              : coveragePct < 75
-              ? '🔥 অসাধারণ! কুরআনের অর্ধেকের বেশি আপনার জানা!'
-              : '✨ সুবহানাল্লাহ! কুরআনের বেশিরভাগ শব্দ আপনার আয়ত্তে!'}
-          </Text>
         </View>
-      </FadeInView>
+
+        {/* Progress bar */}
+        <View
+          style={styles.progressTrack}
+          onLayout={(e: LayoutChangeEvent) => setProgressBarW(e.nativeEvent.layout.width)}
+        >
+          <View style={[styles.progressFill, { width: progressBarW * (coveragePct / 100) }]} />
+        </View>
+
+        {/* Milestone markers */}
+        <View style={styles.milestones}>
+          <MilestoneMarker pct={25} current={coveragePct} />
+          <MilestoneMarker pct={50} current={coveragePct} />
+          <MilestoneMarker pct={75} current={coveragePct} />
+          <MilestoneMarker pct={100} current={coveragePct} />
+        </View>
+      </View>
 
       {/* Search + Filter */}
-      <FadeInView delay={200} slideUp>
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={colors.midnight[300]} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="শব্দ খুঁজুন..."
-              placeholderTextColor={colors.midnight[300]}
-              value={search}
-              onChangeText={setSearch}
-              onSubmitEditing={handleSearch}
-              returnKeyType="search"
-            />
-            {search.length > 0 && (
-              <Pressable onPress={() => { setSearch(''); vocab.loadWords({ limit: 800 }); }}>
-                <Ionicons name="close-circle" size={18} color={colors.midnight[300]} />
-              </Pressable>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.filterRow}>
-          {(['all', 'unlearned', 'learned'] as FilterMode[]).map((mode) => (
-            <Pressable
-              key={mode}
-              style={[styles.filterChip, filter === mode && styles.filterChipActive]}
-              onPress={() => setFilter(mode)}
-            >
-              <Text style={[styles.filterText, filter === mode && styles.filterTextActive]}>
-                {mode === 'all' ? 'সব' : mode === 'learned' ? '✓ শেখা' : '○ না শেখা'}
-              </Text>
+      <View style={styles.searchRow}>
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={18} color={colors.midnight[300]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="শব্দ খুঁজুন..."
+            placeholderTextColor={colors.midnight[300]}
+            value={search}
+            onChangeText={setSearch}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => { setSearch(''); vocab.loadWords({ limit: 800 }); }}>
+              <Ionicons name="close-circle" size={18} color={colors.midnight[300]} />
             </Pressable>
-          ))}
-          <Text style={styles.filterCount}>{filteredWords.length}টি শব্দ</Text>
+          )}
         </View>
-      </FadeInView>
+      </View>
 
+      <View style={styles.filterRow}>
+        {(['all', 'unlearned', 'learned'] as FilterMode[]).map((mode) => (
+          <Pressable
+            key={mode}
+            style={[styles.filterChip, filter === mode && styles.filterChipActive]}
+            onPress={() => setFilter(mode)}
+          >
+            <Text style={[styles.filterText, filter === mode && styles.filterTextActive]}>
+              {mode === 'all' ? 'সব' : mode === 'learned' ? '✓ শেখা' : '○ না শেখা'}
+            </Text>
+          </Pressable>
+        ))}
+        <Text style={styles.filterCount}>{filteredWords.length}টি শব্দ</Text>
+      </View>
+    </>
+  ), [coveragePct, stats.learnedCount, progressBarW, search, filter, filteredWords.length, handleSearch, vocab.loadWords]);
+
+  return (
+    <View style={styles.screen}>
       {/* Word list */}
       {vocab.loading && vocab.words.length === 0 ? (
-        <ActivityIndicator size="large" color={colors.sakina[500]} style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.sakina[500]} style={{ marginTop: 120 }} />
       ) : (
         <FlatList
           data={filteredWords}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderWord}
+          ListHeaderComponent={listHeader}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.3}
+          stickyHeaderIndices={[]}
         />
       )}
 

@@ -2,17 +2,16 @@
 // Hook to initialize and provide the SQLite database
 
 import { useEffect, useState } from 'react';
-import { getDatabase } from '@/src/shared/lib/database';
-import type * as SQLite from 'expo-sqlite';
+import { getDatabase, type AppDatabase } from '@/src/shared/lib/database';
 
 interface UseDatabaseResult {
-  db: SQLite.SQLiteDatabase | null;
+  db: AppDatabase | null;
   isReady: boolean;
   error: Error | null;
 }
 
 export function useDatabase(): UseDatabaseResult {
-  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
+  const [db, setDb] = useState<AppDatabase | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 

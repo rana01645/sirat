@@ -1,7 +1,7 @@
 // WordDetailSheet — Bottom sheet showing word meaning, root, frequency, and link to all ayahs.
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, FlatList, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomSheetModal, type BottomSheetModalRef } from '@/src/shared/components/BottomSheetModal';
 import type { Word, AyahWithSurah } from '@/src/types/quran';
@@ -81,12 +81,12 @@ export function WordDetailSheet({
   }, [propWordId, learned, onMarkLearned, onUnmarkLearned]);
 
   return (
-    <BottomSheetModal ref={sheetRef} heightFraction={showAyahs ? 0.85 : 0.45}>
+    <BottomSheetModal ref={sheetRef} heightFraction={showAyahs ? 0.85 : 0.6}>
       <View style={styles.container}>
         {loading && !wordDetail ? (
           <ActivityIndicator size="large" color={colors.sakina[500]} style={{ marginTop: 40 }} />
         ) : wordDetail ? (
-          <>
+          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
             {/* Word header with play button */}
             <Text style={styles.arabicWord}>{wordDetail.arabic}</Text>
 
@@ -203,7 +203,7 @@ export function WordDetailSheet({
                 />
               </View>
             )}
-          </>
+          </ScrollView>
         ) : null}
       </View>
     </BottomSheetModal>
