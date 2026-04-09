@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, type LayoutChangeEvent } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, type LayoutChangeEvent } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGamificationStore } from '@/src/shared/stores/gamificationStore';
@@ -7,6 +7,8 @@ import { useUserStore } from '@/src/shared/stores/userStore';
 import { useReadingProgress } from '@/src/features/reader/hooks/useReadingProgress';
 import { useJournal, type JournalEntry } from '@/src/features/reader/hooks/useJournal';
 import { useBookmarks, type BookmarkedAyah } from '@/src/features/reader/hooks/useBookmarks';
+import { useAuth } from '@/src/shared/providers/AuthProvider';
+import { useSync } from '@/src/features/sync/hooks/useSync';
 import { FadeInView } from '@/src/shared/components/FadeInView';
 import { colors, fonts, spacing } from '@/src/shared/lib/theme';
 
@@ -17,9 +19,13 @@ export default function ProfileScreen() {
   const { stats, loading: statsLoading, reload: reloadStats } = useReadingProgress();
   const { entries, loading: notesLoading, reload: reloadNotes, deleteEntry } = useJournal();
   const { bookmarks, loading: bookmarksLoading, reload: reloadBookmarks, removeBookmark } = useBookmarks();
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { pushSync, pullSync } = useSync();
   const router = useRouter();
   const [trackW, setTrackW] = useState(0);
   const [quranTrackW, setQuranTrackW] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   // Reload data when tab is focused
   useFocusEffect(
@@ -42,6 +48,45 @@ export default function ProfileScreen() {
     router.push({ pathname: '/reader', params: { surahId: String(surahId) } });
   }, [router]);
 
+  const handlePushSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      await pushSync();
+      setSyncMsg('✓ ক্লাউডে সেভ হয়েছে');
+    } catch {
+      setSyncMsg('সিঙ্ক ব্যর্থ হয়েছে');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 3000);
+    }
+  }, [pushSync]);
+
+  const handlePullSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const success = await pullSync();
+      if (success) {
+        setSyncMsg('✓ ক্লাউড থেকে লোড হয়েছে');
+        reloadStats();
+        reloadNotes();
+        reloadBookmarks();
+      } else {
+        setSyncMsg('ক্লাউডে কোনো ডেটা নেই');
+      }
+    } catch {
+      setSyncMsg('সিঙ্ক ব্যর্থ হয়েছে');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncMsg(null), 3000);
+    }
+  }, [pullSync, reloadStats, reloadNotes, reloadBookmarks]);
+
+  const handleSignOut = useCallback(async () => {
+    await signOut();
+  }, [signOut]);
+
   return (
     <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
@@ -51,6 +96,72 @@ export default function ProfileScreen() {
           <Text style={styles.headerTitle}>আমার প্রোফাইল</Text>
           <Text style={styles.headerSub}>আপনার কুরআন যাত্রার সারসংক্ষেপ</Text>
         </View>
+
+        {/* ── Auth & Sync Card ── */}
+        <FadeInView delay={50} slideUp>
+          <View style={styles.authCard}>
+            {user ? (
+              <>
+                <View style={styles.authUserRow}>
+                  <View style={styles.authAvatar}>
+                    <Ionicons name="person" size={22} color={colors.white} />
+                  </View>
+                  <View style={styles.authUserInfo}>
+                    <Text style={styles.authEmail} numberOfLines={1}>{user.email}</Text>
+                    <Text style={styles.authStatus}>✓ লগইন আছে</Text>
+                  </View>
+                </View>
+
+                {/* Sync buttons */}
+                <View style={styles.syncRow}>
+                  <Pressable
+                    style={[styles.syncBtn, styles.syncBtnPush]}
+                    onPress={handlePushSync}
+                    disabled={syncing}
+                  >
+                    {syncing ? (
+                      <ActivityIndicator size="small" color={colors.sakina[600]} />
+                    ) : (
+                      <>
+                        <Ionicons name="cloud-upload-outline" size={18} color={colors.sakina[600]} />
+                        <Text style={styles.syncBtnText}>ক্লাউডে সেভ</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={[styles.syncBtn, styles.syncBtnPull]}
+                    onPress={handlePullSync}
+                    disabled={syncing}
+                  >
+                    <Ionicons name="cloud-download-outline" size={18} color={colors.nur[700]} />
+                    <Text style={[styles.syncBtnText, { color: colors.nur[700] }]}>ক্লাউড থেকে লোড</Text>
+                  </Pressable>
+                </View>
+
+                {syncMsg && <Text style={styles.syncMsg}>{syncMsg}</Text>}
+
+                <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
+                  <Ionicons name="log-out-outline" size={18} color="#D32F2F" />
+                  <Text style={styles.signOutText}>লগআউট</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <View style={styles.authPromo}>
+                  <Ionicons name="cloud-outline" size={32} color={colors.sakina[400]} />
+                  <Text style={styles.authPromoTitle}>সব ডিভাইসে সিঙ্ক করুন</Text>
+                  <Text style={styles.authPromoSub}>
+                    লগইন করলে আপনার অগ্রগতি, বুকমার্ক ও নোট সব ডিভাইসে পাবেন
+                  </Text>
+                </View>
+                <Pressable style={styles.loginBtn} onPress={() => router.push('/auth')}>
+                  <Ionicons name="person-outline" size={18} color={colors.white} />
+                  <Text style={styles.loginBtnText}>লগইন / রেজিস্ট্রেশন</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </FadeInView>
 
         {/* ── Quran Completion ── */}
         <FadeInView delay={100} slideUp>
@@ -614,5 +725,122 @@ const styles = StyleSheet.create({
     color: colors.midnight[200],
     marginTop: 8,
     textAlign: 'right',
+  },
+
+  // Auth & Sync
+  authCard: {
+    backgroundColor: colors.white,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  authUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  authAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.sakina[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authUserInfo: {
+    flex: 1,
+  },
+  authEmail: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.midnight[700],
+  },
+  authStatus: {
+    fontSize: 12,
+    color: colors.sakina[600],
+    marginTop: 2,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  syncBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  syncBtnPush: {
+    backgroundColor: colors.sakina[50],
+  },
+  syncBtnPull: {
+    backgroundColor: colors.nur[100],
+  },
+  syncBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.bengaliMedium,
+    color: colors.sakina[600],
+  },
+  syncMsg: {
+    fontSize: 12,
+    fontFamily: fonts.bengali,
+    color: colors.sakina[600],
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.nur[100],
+  },
+  signOutText: {
+    fontSize: 14,
+    fontFamily: fonts.bengali,
+    color: '#D32F2F',
+  },
+  authPromo: {
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  authPromoTitle: {
+    fontSize: 16,
+    fontFamily: fonts.bengaliBold,
+    color: colors.midnight[700],
+  },
+  authPromoSub: {
+    fontSize: 13,
+    fontFamily: fonts.bengali,
+    color: colors.midnight[400],
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  loginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.sakina[600],
+    borderRadius: 14,
+    paddingVertical: 12,
+  },
+  loginBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.bengaliBold,
+    color: colors.white,
   },
 });

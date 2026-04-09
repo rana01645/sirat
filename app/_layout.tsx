@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useLoadCustomFonts } from '@/src/shared/hooks/useLoadCustomFonts';
 import { DatabaseProvider } from '@/src/shared/providers/DatabaseProvider';
+import { AuthProvider } from '@/src/shared/providers/AuthProvider';
 
 export {
   ErrorBoundary,
@@ -52,12 +53,15 @@ function RootLayoutNav() {
 
   return (
     <DatabaseProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-        </Stack>
-      </ThemeProvider>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
+            <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          </Stack>
+        </ThemeProvider>
+      </AuthProvider>
     </DatabaseProvider>
   );
 }
