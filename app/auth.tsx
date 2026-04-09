@@ -9,13 +9,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/shared/providers/AuthProvider';
+import { supabase } from '@/src/shared/lib/supabase';
 import { colors, fonts } from '@/src/shared/lib/theme';
 
-type Mode = 'login' | 'register';
+type Mode = 'login' | 'register' | 'forgot';
 
 export default function AuthScreen() {
   const router = useRouter();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, isRecovery, updatePassword, clearRecovery } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,13 +25,39 @@ export default function AuthScreen() {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
   const handleSubmit = async () => {
     setError(null);
     setSuccess(null);
 
-    if (!email.trim() || !password.trim()) {
-      setError('ইমেইল ও পাসওয়ার্ড দিন');
+    if (!email.trim()) {
+      setError('ইমেইল দিন');
+      return;
+    }
+
+    if (mode === 'forgot') {
+      setLoading(true);
+      try {
+        const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: 'https://sirat.bd',
+        });
+        if (err) {
+          setError(translateError(err.message));
+        } else {
+          setSuccess('পাসওয়ার্ড রিসেট লিংক পাঠানো হয়েছে! ইমেইল চেক করুন।');
+        }
+      } catch {
+        setError('কিছু সমস্যা হয়েছে, আবার চেষ্টা করুন');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('পাসওয়ার্ড দিন');
       return;
     }
 
@@ -71,6 +98,125 @@ export default function AuthScreen() {
     }
   };
 
+  const handleSetNewPassword = async () => {
+    setError(null);
+    setSuccess(null);
+    if (!newPassword.trim()) {
+      setError('নতুন পাসওয়ার্ড দিন');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError('পাসওয়ার্ড কমপক্ষে ৬ অক্ষর হতে হবে');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError('পাসওয়ার্ড মিলছে না');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error: err } = await updatePassword(newPassword);
+      if (err) {
+        setError(err);
+      } else {
+        setSuccess('পাসওয়ার্ড আপডেট হয়েছে!');
+        clearRecovery();
+        setTimeout(() => router.back(), 1500);
+      }
+    } catch {
+      setError('কিছু সমস্যা হয়েছে');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // If recovery mode, show password reset form
+  if (isRecovery) {
+    return (
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.brandSection}>
+            <Text style={styles.brandArabic}>صراط</Text>
+            <Text style={styles.brandName}>সিরাত</Text>
+            <Text style={styles.brandTagline}>নতুন পাসওয়ার্ড সেট করুন</Text>
+          </View>
+
+          <View style={styles.form}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>নতুন পাসওয়ার্ড</Text>
+              <View style={styles.inputBox}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="কমপক্ষে ৬ অক্ষর"
+                  placeholderTextColor={colors.midnight[200]}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showPassword}
+                  autoComplete="new-password"
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={colors.midnight[300]}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>পাসওয়ার্ড নিশ্চিত করুন</Text>
+              <View style={styles.inputBox}>
+                <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="আবার পাসওয়ার্ড দিন"
+                  placeholderTextColor={colors.midnight[200]}
+                  value={confirmNewPassword}
+                  onChangeText={setConfirmNewPassword}
+                  secureTextEntry={!showPassword}
+                />
+              </View>
+            </View>
+
+            {error && (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={18} color="#D32F2F" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
+            {success && (
+              <View style={styles.successBox}>
+                <Ionicons name="checkmark-circle" size={18} color={colors.sakina[600]} />
+                <Text style={styles.successText}>{success}</Text>
+              </View>
+            )}
+
+            <Pressable
+              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+              onPress={handleSetNewPassword}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <Text style={styles.submitBtnText}>পাসওয়ার্ড আপডেট করুন</Text>
+              )}
+            </Pressable>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.screen}
@@ -91,7 +237,7 @@ export default function AuthScreen() {
           <Text style={styles.brandArabic}>صراط</Text>
           <Text style={styles.brandName}>সিরাত</Text>
           <Text style={styles.brandTagline}>
-            {mode === 'login' ? 'আপনার অ্যাকাউন্টে লগইন করুন' : 'নতুন অ্যাকাউন্ট তৈরি করুন'}
+            {mode === 'login' ? 'আপনার অ্যাকাউন্টে লগইন করুন' : mode === 'register' ? 'নতুন অ্যাকাউন্ট তৈরি করুন' : 'পাসওয়ার্ড রিসেট করুন'}
           </Text>
         </View>
 
@@ -115,46 +261,50 @@ export default function AuthScreen() {
             </View>
           </View>
 
-          {/* Password */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>পাসওয়ার্ড</Text>
-            <View style={styles.inputBox}>
-              <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
-              <TextInput
-                style={styles.input}
-                placeholder="কমপক্ষে ৬ অক্ষর"
-                placeholderTextColor={colors.midnight[200]}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              />
-              <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={colors.midnight[300]}
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Confirm password (register only) */}
-          {mode === 'register' && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>পাসওয়ার্ড নিশ্চিত করুন</Text>
-              <View style={styles.inputBox}>
-                <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="আবার পাসওয়ার্ড দিন"
-                  placeholderTextColor={colors.midnight[200]}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showPassword}
-                />
+          {/* Password (hidden in forgot mode) */}
+          {mode !== 'forgot' && (
+            <>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>পাসওয়ার্ড</Text>
+                <View style={styles.inputBox}>
+                  <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="কমপক্ষে ৬ অক্ষর"
+                    placeholderTextColor={colors.midnight[200]}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  />
+                  <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={8}>
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.midnight[300]}
+                    />
+                  </Pressable>
+                </View>
               </View>
-            </View>
+
+              {/* Confirm password (register only) */}
+              {mode === 'register' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>পাসওয়ার্ড নিশ্চিত করুন</Text>
+                  <View style={styles.inputBox}>
+                    <Ionicons name="lock-closed-outline" size={20} color={colors.midnight[300]} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="আবার পাসওয়ার্ড দিন"
+                      placeholderTextColor={colors.midnight[200]}
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry={!showPassword}
+                    />
+                  </View>
+                </View>
+              )}
+            </>
           )}
 
           {/* Error / Success */}
@@ -181,7 +331,7 @@ export default function AuthScreen() {
               <ActivityIndicator color={colors.white} size="small" />
             ) : (
               <Text style={styles.submitBtnText}>
-                {mode === 'login' ? 'লগইন' : 'অ্যাকাউন্ট তৈরি করুন'}
+                {mode === 'login' ? 'লগইন' : mode === 'register' ? 'অ্যাকাউন্ট তৈরি করুন' : 'রিসেট লিংক পাঠান'}
               </Text>
             )}
           </Pressable>
@@ -199,6 +349,26 @@ export default function AuthScreen() {
               {mode === 'login' ? 'রেজিস্ট্রেশন করুন' : 'লগইন করুন'}
             </Text>
           </Pressable>
+
+          {/* Forgot password */}
+          {mode === 'login' && (
+            <Pressable style={styles.toggleRow} onPress={() => {
+              setMode('forgot');
+              setError(null);
+              setSuccess(null);
+            }}>
+              <Text style={styles.toggleLink}>পাসওয়ার্ড ভুলে গেছেন?</Text>
+            </Pressable>
+          )}
+          {mode === 'forgot' && (
+            <Pressable style={styles.toggleRow} onPress={() => {
+              setMode('login');
+              setError(null);
+              setSuccess(null);
+            }}>
+              <Text style={styles.toggleLink}>← লগইনে ফিরে যান</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Info note */}

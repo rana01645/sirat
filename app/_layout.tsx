@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
@@ -9,7 +9,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useLoadCustomFonts } from '@/src/shared/hooks/useLoadCustomFonts';
 import { DatabaseProvider } from '@/src/shared/providers/DatabaseProvider';
-import { AuthProvider } from '@/src/shared/providers/AuthProvider';
+import { AuthProvider, useAuth } from '@/src/shared/providers/AuthProvider';
 
 export {
   ErrorBoundary,
@@ -55,6 +55,7 @@ function RootLayoutNav() {
     <DatabaseProvider>
       <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <RecoveryRedirect />
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="auth" options={{ headerShown: false, presentation: 'modal' }} />
@@ -64,4 +65,17 @@ function RootLayoutNav() {
       </AuthProvider>
     </DatabaseProvider>
   );
+}
+
+function RecoveryRedirect() {
+  const { isRecovery } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isRecovery) {
+      router.push('/auth');
+    }
+  }, [isRecovery, router]);
+
+  return null;
 }
