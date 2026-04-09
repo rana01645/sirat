@@ -4,7 +4,7 @@
 
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import {
-  View, Text, FlatList, Pressable, TextInput,
+  View, Text, FlatList, Pressable, TextInput, Modal, ScrollView,
   StyleSheet, ActivityIndicator, type LayoutChangeEvent,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -28,6 +28,30 @@ export default function VocabularyScreen() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterMode>('all');
   const [progressBarW, setProgressBarW] = useState(0);
+  const [showStats, setShowStats] = useState(false);
+
+  // Compute frequency brackets for stats modal
+  const frequencyBrackets = useMemo(() => {
+    if (vocab.words.length === 0) return [];
+    const sorted = [...vocab.words].sort((a, b) => a.rank - b.rank);
+    const totalQuranWords = 77430;
+    const brackets = [10, 25, 50, 100, 200, 300, 500];
+    let cumFreq = 0;
+    let bracketIdx = 0;
+    const results: { count: number; coverage: number }[] = [];
+
+    for (let i = 0; i < sorted.length && bracketIdx < brackets.length; i++) {
+      cumFreq += sorted[i].frequency;
+      while (bracketIdx < brackets.length && i + 1 >= brackets[bracketIdx]) {
+        results.push({
+          count: brackets[bracketIdx],
+          coverage: parseFloat(((cumFreq / totalQuranWords) * 100).toFixed(1)),
+        });
+        bracketIdx++;
+      }
+    }
+    return results;
+  }, [vocab.words]);
 
   // Reload on tab focus
   useFocusEffect(
@@ -164,8 +188,19 @@ export default function VocabularyScreen() {
     <>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>কুরআনের শব্দভান্ডার</Text>
-        <Text style={styles.headerSub}>শব্দ শিখুন, কুরআন বুঝুন</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.headerTitle}>কুরআনের শব্দভান্ডার</Text>
+            <Text style={styles.headerSub}>শব্দ শিখুন, কুরআন বুঝুন</Text>
+          </View>
+          <Pressable
+            onPress={() => setShowStats(true)}
+            style={styles.infoBtn}
+            hitSlop={8}
+          >
+            <Ionicons name="information-circle-outline" size={26} color={colors.sakina[600]} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Coverage hero card */}
@@ -267,6 +302,80 @@ export default function VocabularyScreen() {
         onUnmarkLearned={vocab.unmarkLearned}
         wordAudio={wordAudio}
       />
+
+      {/* Stats Info Modal */}
+      <Modal
+        visible={showStats}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStats(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowStats(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📊 শব্দভান্ডার পরিসংখ্যান</Text>
+              <Pressable onPress={() => setShowStats(false)} hitSlop={8}>
+                <Ionicons name="close" size={24} color={colors.midnight[400]} />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Your progress */}
+              <View style={styles.statsSection}>
+                <Text style={styles.statsSectionTitle}>আপনার অগ্রগতি</Text>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statsGridItem}>
+                    <Text style={styles.statsGridValue}>{stats.learnedCount}</Text>
+                    <Text style={styles.statsGridLabel}>শব্দ শিখেছেন</Text>
+                  </View>
+                  <View style={styles.statsGridItem}>
+                    <Text style={styles.statsGridValue}>{coveragePct.toFixed(1)}%</Text>
+                    <Text style={styles.statsGridLabel}>কুরআন বুঝবেন</Text>
+                  </View>
+                  <View style={styles.statsGridItem}>
+                    <Text style={styles.statsGridValue}>{stats.totalWords}</Text>
+                    <Text style={styles.statsGridLabel}>মোট শব্দ</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Coverage brackets */}
+              <View style={styles.statsSection}>
+                <Text style={styles.statsSectionTitle}>🔑 শব্দ শিখলে কত% কুরআন বুঝবেন</Text>
+                <Text style={styles.statsSectionHint}>
+                  কুরআনে মোট ৭৭,৪৩০টি শব্দ আছে। সবচেয়ে বেশি ব্যবহৃত শব্দ আগে শিখলে দ্রুত বুঝতে পারবেন।
+                </Text>
+                {frequencyBrackets.map((b) => (
+                  <View key={b.count} style={styles.bracketRow}>
+                    <View style={styles.bracketLeft}>
+                      <Ionicons
+                        name={stats.learnedCount >= b.count ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={18}
+                        color={stats.learnedCount >= b.count ? colors.sakina[500] : colors.midnight[200]}
+                      />
+                      <Text style={styles.bracketWords}>শীর্ষ {b.count}টি শব্দ</Text>
+                    </View>
+                    <View style={styles.bracketRight}>
+                      <View style={styles.bracketBarTrack}>
+                        <View style={[styles.bracketBarFill, { width: `${b.coverage}%` }]} />
+                      </View>
+                      <Text style={styles.bracketPct}>{b.coverage}%</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+
+              {/* Motivation */}
+              <View style={[styles.statsSection, styles.motivationBox]}>
+                <Text style={styles.motivationEmoji}>💡</Text>
+                <Text style={styles.motivationText}>
+                  কুরআনের সবচেয়ে বেশি ব্যবহৃত মাত্র ৫০০টি শব্দ শিখলেই আপনি প্রায় ৫০% কুরআন বুঝতে পারবেন!
+                </Text>
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -527,5 +636,156 @@ const styles = StyleSheet.create({
   },
   playSmallBtnActive: {
     backgroundColor: colors.sakina[600],
+  },
+
+  // Header row with info button
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  infoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.sakina[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Stats modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    backgroundColor: colors.white,
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.nur[100],
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: fonts.bengaliBold,
+    color: colors.midnight[800],
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  statsSection: {
+    marginBottom: 20,
+  },
+  statsSectionTitle: {
+    fontSize: 15,
+    fontFamily: fonts.bengaliBold,
+    color: colors.midnight[700],
+    marginBottom: 8,
+  },
+  statsSectionHint: {
+    fontSize: 12,
+    fontFamily: fonts.bengali,
+    color: colors.midnight[400],
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  statsGridItem: {
+    flex: 1,
+    backgroundColor: colors.nur[50],
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  statsGridValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.sakina[600],
+  },
+  statsGridLabel: {
+    fontSize: 11,
+    fontFamily: fonts.bengali,
+    color: colors.midnight[400],
+    marginTop: 2,
+  },
+  bracketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.nur[50],
+  },
+  bracketLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: 130,
+  },
+  bracketWords: {
+    fontSize: 13,
+    fontFamily: fonts.bengali,
+    color: colors.midnight[600],
+  },
+  bracketRight: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bracketBarTrack: {
+    flex: 1,
+    height: 8,
+    backgroundColor: colors.nur[100],
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  bracketBarFill: {
+    height: '100%',
+    backgroundColor: colors.sakina[400],
+    borderRadius: 4,
+  },
+  bracketPct: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.sakina[600],
+    width: 44,
+    textAlign: 'right',
+  },
+  motivationBox: {
+    backgroundColor: colors.nur[50],
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  motivationEmoji: {
+    fontSize: 24,
+  },
+  motivationText: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: fonts.bengali,
+    color: colors.midnight[600],
+    lineHeight: 20,
   },
 });
