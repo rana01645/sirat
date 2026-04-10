@@ -6,6 +6,8 @@ import { useCallback, useRef } from 'react';
 import { useAuth } from '@/src/shared/providers/AuthProvider';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
 import { supabase } from '@/src/shared/lib/supabase';
+import { useGamificationStore } from '@/src/shared/stores/gamificationStore';
+import { useUserStore } from '@/src/shared/stores/userStore';
 
 interface SyncSnapshot {
   // Gamification
@@ -179,6 +181,27 @@ export function useSync() {
       });
 
       console.log('[Sync] Snapshot applied successfully');
+
+      // Hydrate Zustand stores so UI updates immediately
+      useGamificationStore.getState().hydrate({
+        ilmCoins: snap.ilm_coins,
+        currentStreak: snap.current_streak,
+        longestStreak: snap.longest_streak,
+        totalAyahsRead: snap.total_ayahs_read,
+        totalSessions: snap.total_sessions,
+        lastSessionDate: snap.last_session_date,
+        dailyGoalAyahs: snap.daily_goal_ayahs,
+        unlockedThemes: snap.unlocked_themes,
+        activeTheme: snap.active_theme,
+      });
+
+      useUserStore.getState().hydrate({
+        readingLevel: snap.reading_level as 'beginner' | 'intermediate' | 'advanced',
+        dailyGoalType: snap.daily_goal_type as 'ayahs' | 'minutes',
+        dailyGoalValue: snap.daily_goal_value,
+        lastSurahId: snap.last_surah_id,
+        lastAyahId: snap.last_ayah_id,
+      });
     } catch (err) {
       console.error('[Sync] applySnapshot error:', err);
     }
