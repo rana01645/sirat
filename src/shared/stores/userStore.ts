@@ -22,6 +22,9 @@ interface UserState {
   isAuthenticated: boolean;
   userId: string | null;
 
+  // Sync version — bumped after cloud pull so dependent hooks can reload
+  syncVersion: number;
+
   // Actions
   setReadingLevel: (level: UserState['readingLevel']) => void;
   setDailyGoal: (type: UserState['dailyGoalType'], value: number) => void;
@@ -30,6 +33,7 @@ interface UserState {
   updateStreak: (streak: number, longest: number, lastDate: string) => void;
   setAuth: (userId: string | null) => void;
   hydrate: (state: Partial<UserState>) => void;
+  bumpSyncVersion: () => void;
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -47,6 +51,7 @@ export const useUserStore = create<UserState>((set) => ({
 
   isAuthenticated: false,
   userId: null,
+  syncVersion: 0,
 
   setReadingLevel: (level) => set({ readingLevel: level }),
   setDailyGoal: (type, value) => set({ dailyGoalType: type, dailyGoalValue: value }),
@@ -61,4 +66,5 @@ export const useUserStore = create<UserState>((set) => ({
     set({ currentStreak: streak, longestStreak: longest, lastReadDate: lastDate }),
   setAuth: (userId) => set({ isAuthenticated: !!userId, userId }),
   hydrate: (state) => set(state),
+  bumpSyncVersion: () => set((s) => ({ syncVersion: s.syncVersion + 1 })),
 }));

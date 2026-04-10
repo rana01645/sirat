@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
+import { useUserStore } from '@/src/shared/stores/userStore';
 import type { Word, AyahWithSurah } from '@/src/types/quran';
 
 export interface VocabStats {
@@ -12,6 +13,7 @@ export interface VocabStats {
 
 export function useVocabulary() {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const [words, setWords] = useState<Word[]>([]);
   const [learnedIds, setLearnedIds] = useState<Set<number>>(new Set());
   const [stats, setStats] = useState<VocabStats>({ totalWords: 0, learnedCount: 0, topCoveragePercent: 0 });
@@ -105,13 +107,13 @@ export function useVocabulary() {
     }
   }, [db]);
 
-  // Load once on mount — not on every callback identity change
+  // Reload on mount and after cloud sync
   useEffect(() => {
     loadWords({ limit: 800 });
     loadLearnedIds();
     loadStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db]);
+  }, [db, syncVersion]);
 
   const markLearned = useCallback(async (wordId: number) => {
     try {

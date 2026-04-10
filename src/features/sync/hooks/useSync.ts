@@ -202,6 +202,9 @@ export function useSync() {
         lastSurahId: snap.last_surah_id,
         lastAyahId: snap.last_ayah_id,
       });
+
+      // Bump sync version so hooks like useVocabulary reload from DB
+      useUserStore.getState().bumpSyncVersion();
     } catch (err) {
       console.error('[Sync] applySnapshot error:', err);
     }
