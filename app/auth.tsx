@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/src/shared/providers/AuthProvider';
 import { supabase } from '@/src/shared/lib/supabase';
-import { colors, fonts } from '@/src/shared/lib/theme';
+import { colors, fonts, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 
 type Mode = 'login' | 'register' | 'forgot';
 
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   backBtn: {
-    paddingTop: 56,
+    paddingTop: STATUS_BAR_OFFSET,
     paddingBottom: 8,
     alignSelf: 'flex-start',
   },

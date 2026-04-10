@@ -63,3 +63,7 @@ export const spacing = {
   xl: 32,
   xxl: 48,
 } as const;
+
+// Status bar offset — needed on mobile, minimal on web
+import { Platform } from 'react-native';
+export const STATUS_BAR_OFFSET = Platform.OS === 'web' ? 12 : 60;

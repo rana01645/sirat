@@ -10,7 +10,7 @@ import { useBookmarks, type BookmarkedAyah } from '@/src/features/reader/hooks/u
 import { useAuth } from '@/src/shared/providers/AuthProvider';
 import { useSync } from '@/src/features/sync/hooks/useSync';
 import { FadeInView } from '@/src/shared/components/FadeInView';
-import { colors, fonts, spacing } from '@/src/shared/lib/theme';
+import { colors, fonts, spacing, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 
 export default function ProfileScreen() {
   const { currentRank, nextRank, ilmCoins, progressToNextRank, nurLevel } =
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: STATUS_BAR_OFFSET,
     paddingBottom: 8,
   },
   headerTitle: {

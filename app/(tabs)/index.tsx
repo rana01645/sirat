@@ -15,7 +15,7 @@ import { RankBadge } from '@/src/features/gamification/components/RankBadge';
 import { CoinPopup, type CoinPopupRef } from '@/src/features/gamification/components/CoinPopup';
 import { FadeInView } from '@/src/shared/components/FadeInView';
 import { getActiveStreakMessage, getBrokenStreakMessage } from '@/src/features/gamification/constants/streak-messages';
-import { colors, fonts, spacing } from '@/src/shared/lib/theme';
+import { colors, fonts, spacing, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: STATUS_BAR_OFFSET,
     paddingBottom: 8,
   },
   headerTitle: {

@@ -22,7 +22,7 @@ import { NotesSheet } from '@/src/features/reader/components/NotesSheet';
 import { ContextSheet } from '@/src/features/reader/components/ContextSheet';
 import { useContextTafsir } from '@/src/features/reader/hooks/useContextTafsir';
 import { FadeInView } from '@/src/shared/components/FadeInView';
-import { colors, fonts, spacing } from '@/src/shared/lib/theme';
+import { colors, fonts, spacing, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 import type { Ayah, WordInAyah } from '@/src/types/quran';
 
 export default function ReaderScreen() {
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 56,
+    paddingTop: STATUS_BAR_OFFSET,
     paddingBottom: 12,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.white,

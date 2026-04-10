@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { FadeInView } from '@/src/shared/components/FadeInView';
 import { EMOTIONS } from '@/src/features/discovery/constants/emotion-verses';
 import { useEmotionVerses, type DiscoveryAyah } from '@/src/features/discovery/hooks/useEmotionVerses';
-import { colors, fonts } from '@/src/shared/lib/theme';
+import { colors, fonts, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 
 export default function DiscoveryScreen() {
   const { verses, loading, selectedEmotion, loadVerses, clear } = useEmotionVerses();
@@ -14,7 +14,7 @@ export default function DiscoveryScreen() {
     return (
       <View style={styles.container}>
         {/* Header */}
-        <View style={[styles.verseHeader, { paddingTop: 60 }]}>
+        <View style={[styles.verseHeader, { paddingTop: STATUS_BAR_OFFSET }]}>
           <Pressable onPress={clear} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={22} color={colors.midnight[600]} />
           </Pressable>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   header: {
-    paddingTop: 60,
+    paddingTop: STATUS_BAR_OFFSET,
     paddingBottom: 8,
   },
   headerTitle: {
