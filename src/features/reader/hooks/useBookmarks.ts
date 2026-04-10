@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
+import { useUserStore } from '@/src/shared/stores/userStore';
 
 export interface BookmarkedAyah {
   id: number;
@@ -17,6 +18,7 @@ export interface BookmarkedAyah {
 
 export function useBookmarks() {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<number>>(new Set());
   const [bookmarks, setBookmarks] = useState<BookmarkedAyah[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ export function useBookmarks() {
 
   useEffect(() => {
     loadBookmarks();
-  }, [loadBookmarks]);
+  }, [loadBookmarks, syncVersion]);
 
   const toggleBookmark = useCallback(async (ayahId: number) => {
     const isBookmarked = bookmarkedIds.has(ayahId);

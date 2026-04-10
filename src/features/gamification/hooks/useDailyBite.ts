@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
 import { useGamificationStore } from '@/src/shared/stores/gamificationStore';
+import { useUserStore } from '@/src/shared/stores/userStore';
 import type { Ayah, Surah } from '@/src/types/quran';
 
 interface DailyBite {
@@ -25,6 +26,7 @@ interface ProgressRow {
 
 export function useDailyBite(): DailyBite {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const dailyProgress = useGamificationStore((s) => s.dailyProgress);
   const dailyGoalAyahs = useGamificationStore((s) => s.dailyGoalAyahs);
   const [surah, setSurah] = useState<Surah | null>(null);
@@ -70,7 +72,7 @@ export function useDailyBite(): DailyBite {
 
   useEffect(() => {
     loadDailyBite();
-  }, [loadDailyBite]);
+  }, [loadDailyBite, syncVersion]);
 
   const startReading = useCallback(() => {
     // This will be called to navigate to the reader with today's verses

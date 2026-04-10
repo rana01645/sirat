@@ -4,6 +4,7 @@
 import { useEffect, useCallback } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
 import { useGamificationStore } from '@/src/shared/stores/gamificationStore';
+import { useUserStore } from '@/src/shared/stores/userStore';
 
 interface GamificationRow {
   ilm_coins: number;
@@ -30,6 +31,7 @@ interface ProgressRow {
 
 export function useGamificationSync() {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const hydrate = useGamificationStore((s) => s.hydrate);
   const resetDailyIfNeeded = useGamificationStore((s) => s.resetDailyIfNeeded);
   const updateStreak = useGamificationStore((s) => s.updateStreak);
@@ -85,7 +87,7 @@ export function useGamificationSync() {
       updateStreak(today);
       resetDailyIfNeeded(today);
     })();
-  }, [db, hydrate, resetDailyIfNeeded, updateStreak]);
+  }, [db, syncVersion, hydrate, resetDailyIfNeeded, updateStreak]);
 
   // Persist to DB
   const persistState = useCallback(async () => {

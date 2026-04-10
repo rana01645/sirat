@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
+import { useUserStore } from '@/src/shared/stores/userStore';
 
 export interface ReadingStats {
   totalUniqueAyahsRead: number;
@@ -29,6 +30,7 @@ const TOTAL_AYAHS = 6236;
 
 export function useReadingProgress() {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const [stats, setStats] = useState<ReadingStats | null>(null);
   const [loading, setLoading] = useState(true);
   const pendingWrites = useRef<Array<{ ayahId: number; surahId: number; verseNumber: number }>>([]);
@@ -99,7 +101,7 @@ export function useReadingProgress() {
 
   useEffect(() => {
     loadStats();
-  }, [loadStats]);
+  }, [loadStats, syncVersion]);
 
   // Batch-write read ayahs (debounced to reduce DB writes)
   const flushPending = useCallback(async () => {

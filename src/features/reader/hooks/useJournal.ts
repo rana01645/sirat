@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useDatabaseContext } from '@/src/shared/providers/DatabaseProvider';
+import { useUserStore } from '@/src/shared/stores/userStore';
 
 export interface JournalEntry {
   id: number;
@@ -18,6 +19,7 @@ export interface JournalEntry {
 
 export function useJournal() {
   const { db } = useDatabaseContext();
+  const syncVersion = useUserStore((s) => s.syncVersion);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +68,7 @@ export function useJournal() {
 
   useEffect(() => {
     loadEntries();
-  }, [loadEntries]);
+  }, [loadEntries, syncVersion]);
 
   const deleteEntry = useCallback(async (id: number) => {
     await db.runAsync('DELETE FROM journal_entries WHERE id = ?', id);
