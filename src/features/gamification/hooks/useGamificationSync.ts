@@ -98,7 +98,7 @@ export function useGamificationSync() {
       `UPDATE gamification_state SET
         ilm_coins = ?, current_streak = ?, longest_streak = ?,
         nur_level = ?, total_ayahs_read = ?, total_sessions = ?,
-        last_session_date = ?, updated_at = datetime('now')
+        last_session_date = ?
       WHERE id = 1`,
       state.ilmCoins,
       state.currentStreak,
