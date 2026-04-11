@@ -10,23 +10,19 @@ import { useGamificationStore } from '@/src/shared/stores/gamificationStore';
 import { useUserStore } from '@/src/shared/stores/userStore';
 
 interface SyncSnapshot {
-  // Gamification
+  // Gamification (from gamification_state table)
   ilm_coins: number;
   current_streak: number;
   longest_streak: number;
   total_ayahs_read: number;
   total_sessions: number;
   last_session_date: string | null;
-  daily_goal_ayahs: number;
-  unlocked_themes: string[];
-  active_theme: string;
 
-  // User progress
+  // User progress (from user_progress table)
   reading_level: string;
-  daily_goal_type: string;
-  daily_goal_value: number;
-  last_surah_id: number;
-  last_ayah_id: number;
+  daily_goal_ayahs: number;
+  current_surah_id: number;
+  current_ayah_id: number;
 
   // Learned words (array of word IDs)
   learned_word_ids: number[];
@@ -65,14 +61,13 @@ export function useSync() {
       const gam = await db.getFirstAsync<{
         ilm_coins: number; current_streak: number; longest_streak: number;
         total_ayahs_read: number; total_sessions: number; last_session_date: string | null;
-        daily_goal_ayahs: number; unlocked_themes: string; active_theme: string;
-      }>('SELECT * FROM gamification_state WHERE id = 1');
+      }>('SELECT ilm_coins, current_streak, longest_streak, total_ayahs_read, total_sessions, last_session_date FROM gamification_state WHERE id = 1');
 
       // User progress
       const prog = await db.getFirstAsync<{
-        reading_level: string; daily_goal_type: string; daily_goal_value: number;
-        last_surah_id: number; last_ayah_id: number;
-      }>('SELECT * FROM user_progress WHERE id = 1');
+        reading_level: string; daily_goal_ayahs: number;
+        current_surah_id: number; current_ayah_id: number;
+      }>('SELECT reading_level, daily_goal_ayahs, current_surah_id, current_ayah_id FROM user_progress WHERE id = 1');
 
       // Learned words
       const learnedRows = await db.getAllAsync<{ word_id: number }>('SELECT word_id FROM learned_words');
@@ -97,14 +92,10 @@ export function useSync() {
         total_ayahs_read: gam?.total_ayahs_read ?? 0,
         total_sessions: gam?.total_sessions ?? 0,
         last_session_date: gam?.last_session_date ?? null,
-        daily_goal_ayahs: gam?.daily_goal_ayahs ?? 3,
-        unlocked_themes: gam?.unlocked_themes ? JSON.parse(gam.unlocked_themes) : ['default'],
-        active_theme: gam?.active_theme ?? 'default',
         reading_level: prog?.reading_level ?? 'beginner',
-        daily_goal_type: prog?.daily_goal_type ?? 'ayahs',
-        daily_goal_value: prog?.daily_goal_value ?? 3,
-        last_surah_id: prog?.last_surah_id ?? 1,
-        last_ayah_id: prog?.last_ayah_id ?? 1,
+        daily_goal_ayahs: prog?.daily_goal_ayahs ?? 3,
+        current_surah_id: prog?.current_surah_id ?? 1,
+        current_ayah_id: prog?.current_ayah_id ?? 1,
         learned_word_ids: learnedRows.map((r) => r.word_id),
         bookmark_ayah_ids: bookmarkRows.map((r) => r.ayah_id),
         journal_entries: journalRows,
@@ -123,21 +114,24 @@ export function useSync() {
 
     try {
       await db.withTransactionAsync(async () => {
-        // Update gamification
+        // Update gamification state (only columns that exist in the table)
         await db.runAsync(
-          `INSERT OR REPLACE INTO gamification_state (id, ilm_coins, current_streak, longest_streak, total_ayahs_read, total_sessions, last_session_date, daily_goal_ayahs, unlocked_themes, active_theme)
-           VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `UPDATE gamification_state SET
+            ilm_coins = ?, current_streak = ?, longest_streak = ?,
+            total_ayahs_read = ?, total_sessions = ?, last_session_date = ?
+           WHERE id = 1`,
           snap.ilm_coins, snap.current_streak, snap.longest_streak,
           snap.total_ayahs_read, snap.total_sessions, snap.last_session_date,
-          snap.daily_goal_ayahs, JSON.stringify(snap.unlocked_themes), snap.active_theme,
         );
 
-        // Update user progress
+        // Update user progress (actual columns: current_surah_id, current_ayah_id, daily_goal_ayahs, reading_level)
         await db.runAsync(
-          `INSERT OR REPLACE INTO user_progress (id, reading_level, daily_goal_type, daily_goal_value, last_surah_id, last_ayah_id)
-           VALUES (1, ?, ?, ?, ?, ?)`,
-          snap.reading_level, snap.daily_goal_type, snap.daily_goal_value,
-          snap.last_surah_id, snap.last_ayah_id,
+          `UPDATE user_progress SET
+            reading_level = ?, daily_goal_ayahs = ?,
+            current_surah_id = ?, current_ayah_id = ?
+           WHERE id = 1`,
+          snap.reading_level, snap.daily_goal_ayahs,
+          snap.current_surah_id, snap.current_ayah_id,
         );
 
         // Merge learned words (add new, keep existing)
@@ -190,16 +184,12 @@ export function useSync() {
         totalSessions: snap.total_sessions,
         lastSessionDate: snap.last_session_date,
         dailyGoalAyahs: snap.daily_goal_ayahs,
-        unlockedThemes: snap.unlocked_themes,
-        activeTheme: snap.active_theme,
       });
 
       useUserStore.getState().hydrate({
         readingLevel: snap.reading_level as 'beginner' | 'intermediate' | 'advanced',
-        dailyGoalType: snap.daily_goal_type as 'ayahs' | 'minutes',
-        dailyGoalValue: snap.daily_goal_value,
-        lastSurahId: snap.last_surah_id,
-        lastAyahId: snap.last_ayah_id,
+        lastSurahId: snap.current_surah_id,
+        lastAyahId: snap.current_ayah_id,
       });
 
       // Bump sync version so hooks like useVocabulary reload from DB
