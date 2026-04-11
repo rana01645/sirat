@@ -109,33 +109,52 @@ export function useSync() {
   }, [db]);
 
   // Apply a remote snapshot to local DB
-  const applySnapshot = useCallback(async (snap: SyncSnapshot) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applySnapshot = useCallback(async (snap: Record<string, any>) => {
     if (!db) return;
 
     try {
+      // Handle both old and new field names for backward compatibility
+      const s = {
+        ilm_coins: snap.ilm_coins ?? 0,
+        current_streak: snap.current_streak ?? 0,
+        longest_streak: snap.longest_streak ?? 0,
+        total_ayahs_read: snap.total_ayahs_read ?? 0,
+        total_sessions: snap.total_sessions ?? 0,
+        last_session_date: snap.last_session_date ?? null,
+        reading_level: snap.reading_level ?? 'beginner',
+        daily_goal_ayahs: snap.daily_goal_ayahs ?? snap.daily_goal_value ?? 3,
+        current_surah_id: snap.current_surah_id ?? snap.last_surah_id ?? 1,
+        current_ayah_id: snap.current_ayah_id ?? snap.last_ayah_id ?? 1,
+        learned_word_ids: snap.learned_word_ids ?? [],
+        bookmark_ayah_ids: snap.bookmark_ayah_ids ?? [],
+        journal_entries: snap.journal_entries ?? [],
+        reading_history: snap.reading_history ?? [],
+      };
+
       await db.withTransactionAsync(async () => {
-        // Update gamification state (only columns that exist in the table)
+        // Update gamification state
         await db.runAsync(
           `UPDATE gamification_state SET
             ilm_coins = ?, current_streak = ?, longest_streak = ?,
             total_ayahs_read = ?, total_sessions = ?, last_session_date = ?
            WHERE id = 1`,
-          snap.ilm_coins, snap.current_streak, snap.longest_streak,
-          snap.total_ayahs_read, snap.total_sessions, snap.last_session_date,
+          s.ilm_coins, s.current_streak, s.longest_streak,
+          s.total_ayahs_read, s.total_sessions, s.last_session_date,
         );
 
-        // Update user progress (actual columns: current_surah_id, current_ayah_id, daily_goal_ayahs, reading_level)
+        // Update user progress
         await db.runAsync(
           `UPDATE user_progress SET
             reading_level = ?, daily_goal_ayahs = ?,
             current_surah_id = ?, current_ayah_id = ?
            WHERE id = 1`,
-          snap.reading_level, snap.daily_goal_ayahs,
-          snap.current_surah_id, snap.current_ayah_id,
+          s.reading_level, s.daily_goal_ayahs,
+          s.current_surah_id, s.current_ayah_id,
         );
 
         // Merge learned words (add new, keep existing)
-        for (const wordId of snap.learned_word_ids) {
+        for (const wordId of s.learned_word_ids) {
           await db.runAsync(
             'INSERT OR IGNORE INTO learned_words (word_id) VALUES (?)',
             wordId,
@@ -143,7 +162,7 @@ export function useSync() {
         }
 
         // Merge bookmarks
-        for (const ayahId of snap.bookmark_ayah_ids) {
+        for (const ayahId of s.bookmark_ayah_ids) {
           await db.runAsync(
             'INSERT OR IGNORE INTO bookmarks (ayah_id) VALUES (?)',
             ayahId,
@@ -151,7 +170,7 @@ export function useSync() {
         }
 
         // Merge journal entries (by ayah_id + created_at to avoid duplicates)
-        for (const entry of snap.journal_entries) {
+        for (const entry of s.journal_entries) {
           const existing = await db.getFirstAsync<{ id: number }>(
             'SELECT id FROM journal_entries WHERE ayah_id = ? AND created_at = ?',
             entry.ayah_id, entry.created_at,
@@ -165,7 +184,7 @@ export function useSync() {
         }
 
         // Merge reading history
-        for (const h of snap.reading_history) {
+        for (const h of s.reading_history) {
           await db.runAsync(
             'INSERT OR IGNORE INTO reading_history (surah_id, ayah_id, read_date) VALUES (?, ?, ?)',
             h.surah_id, h.ayah_id, h.read_date,
@@ -177,19 +196,19 @@ export function useSync() {
 
       // Hydrate Zustand stores so UI updates immediately
       useGamificationStore.getState().hydrate({
-        ilmCoins: snap.ilm_coins,
-        currentStreak: snap.current_streak,
-        longestStreak: snap.longest_streak,
-        totalAyahsRead: snap.total_ayahs_read,
-        totalSessions: snap.total_sessions,
-        lastSessionDate: snap.last_session_date,
-        dailyGoalAyahs: snap.daily_goal_ayahs,
+        ilmCoins: s.ilm_coins,
+        currentStreak: s.current_streak,
+        longestStreak: s.longest_streak,
+        totalAyahsRead: s.total_ayahs_read,
+        totalSessions: s.total_sessions,
+        lastSessionDate: s.last_session_date,
+        dailyGoalAyahs: s.daily_goal_ayahs,
       });
 
       useUserStore.getState().hydrate({
-        readingLevel: snap.reading_level as 'beginner' | 'intermediate' | 'advanced',
-        lastSurahId: snap.current_surah_id,
-        lastAyahId: snap.current_ayah_id,
+        readingLevel: s.reading_level as 'beginner' | 'intermediate' | 'advanced',
+        lastSurahId: s.current_surah_id,
+        lastAyahId: s.current_ayah_id,
       });
 
       // Bump sync version so hooks like useVocabulary reload from DB
@@ -261,7 +280,7 @@ export function useSync() {
       }
 
       if (data?.snapshot) {
-        await applySnapshot(data.snapshot as SyncSnapshot);
+        await applySnapshot(data.snapshot as Record<string, unknown>);
         return true;
       }
       return false;
