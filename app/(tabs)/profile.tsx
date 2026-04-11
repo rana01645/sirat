@@ -70,20 +70,20 @@ export default function ProfileScreen() {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      const success = await pullSync();
-      if (success) {
+      const result = await pullSync();
+      if (result.success) {
         setSyncMsg('✓ ক্লাউড থেকে লোড হয়েছে');
         reloadStats();
         reloadNotes();
         reloadBookmarks();
       } else {
-        setSyncMsg('ক্লাউডে কোনো ডেটা নেই');
+        setSyncMsg(`✗ ${result.error || 'সিঙ্ক ব্যর্থ হয়েছে'}`);
       }
     } catch {
-      setSyncMsg('সিঙ্ক ব্যর্থ হয়েছে');
+      setSyncMsg('✗ সিঙ্ক ব্যর্থ হয়েছে');
     } finally {
       setSyncing(false);
-      setTimeout(() => setSyncMsg(null), 3000);
+      setTimeout(() => setSyncMsg(null), 5000);
     }
   }, [pullSync, reloadStats, reloadNotes, reloadBookmarks]);
 
