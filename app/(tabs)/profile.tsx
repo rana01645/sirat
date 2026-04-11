@@ -52,13 +52,17 @@ export default function ProfileScreen() {
     setSyncing(true);
     setSyncMsg(null);
     try {
-      await pushSync();
-      setSyncMsg('✓ ক্লাউডে সেভ হয়েছে');
+      const result = await pushSync();
+      if (result.success) {
+        setSyncMsg('✓ ক্লাউডে সেভ হয়েছে');
+      } else {
+        setSyncMsg(`✗ ${result.error || 'সিঙ্ক ব্যর্থ হয়েছে'}`);
+      }
     } catch {
-      setSyncMsg('সিঙ্ক ব্যর্থ হয়েছে');
+      setSyncMsg('✗ সিঙ্ক ব্যর্থ হয়েছে');
     } finally {
       setSyncing(false);
-      setTimeout(() => setSyncMsg(null), 3000);
+      setTimeout(() => setSyncMsg(null), 5000);
     }
   }, [pushSync]);
 

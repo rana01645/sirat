@@ -36,8 +36,7 @@ interface SyncSnapshot {
 
   // Journal entries
   journal_entries: {
-    surah_id: number;
-    verse_number: number;
+    ayah_id: number;
     reflection_text: string;
     created_at: string;
   }[];
@@ -83,8 +82,8 @@ export function useSync() {
 
       // Journal entries
       const journalRows = await db.getAllAsync<{
-        surah_id: number; verse_number: number; reflection_text: string; created_at: string;
-      }>('SELECT surah_id, verse_number, reflection_text, created_at FROM journal_entries ORDER BY created_at');
+        ayah_id: number; reflection_text: string; created_at: string;
+      }>('SELECT ayah_id, reflection_text, created_at FROM journal_entries ORDER BY created_at');
 
       // Reading history (last 500 to keep snapshot small)
       const historyRows = await db.getAllAsync<{
@@ -157,16 +156,16 @@ export function useSync() {
           );
         }
 
-        // Merge journal entries (by surah_id + verse_number + created_at to avoid duplicates)
+        // Merge journal entries (by ayah_id + created_at to avoid duplicates)
         for (const entry of snap.journal_entries) {
           const existing = await db.getFirstAsync<{ id: number }>(
-            'SELECT id FROM journal_entries WHERE surah_id = ? AND verse_number = ? AND created_at = ?',
-            entry.surah_id, entry.verse_number, entry.created_at,
+            'SELECT id FROM journal_entries WHERE ayah_id = ? AND created_at = ?',
+            entry.ayah_id, entry.created_at,
           );
           if (!existing) {
             await db.runAsync(
-              'INSERT INTO journal_entries (surah_id, verse_number, reflection_text, created_at) VALUES (?, ?, ?, ?)',
-              entry.surah_id, entry.verse_number, entry.reflection_text, entry.created_at,
+              'INSERT INTO journal_entries (ayah_id, reflection_text, created_at) VALUES (?, ?, ?)',
+              entry.ayah_id, entry.reflection_text, entry.created_at,
             );
           }
         }
@@ -211,13 +210,17 @@ export function useSync() {
   }, [db]);
 
   // Push local state to Supabase
-  const pushSync = useCallback(async () => {
-    if (!user || !db || syncingRef.current) return;
+  const pushSync = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'লগইন করুন' };
+    if (!db) return { success: false, error: 'ডাটাবেস লোড হয়নি' };
+    if (syncingRef.current) return { success: false, error: 'সিঙ্ক চলছে...' };
     syncingRef.current = true;
 
     try {
       const snapshot = await collectSnapshot();
-      if (!snapshot) return;
+      if (!snapshot) return { success: false, error: 'ডাটা সংগ্রহ করতে ব্যর্থ' };
+
+      console.log('[Sync] Pushing snapshot, user:', user.id, 'learned_words:', snapshot.learned_word_ids.length, 'ayahs_read:', snapshot.total_ayahs_read);
 
       const { error } = await supabase
         .from('user_sync')
@@ -228,12 +231,16 @@ export function useSync() {
         }, { onConflict: 'user_id' });
 
       if (error) {
-        console.error('[Sync] Push error:', error.message);
-      } else {
-        console.log('[Sync] Pushed to cloud');
+        console.error('[Sync] Push error:', error.message, error.code, error.details);
+        return { success: false, error: error.message };
       }
+
+      console.log('[Sync] Pushed to cloud successfully');
+      return { success: true };
     } catch (err) {
-      console.error('[Sync] Push failed:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[Sync] Push failed:', msg);
+      return { success: false, error: msg };
     } finally {
       syncingRef.current = false;
     }
