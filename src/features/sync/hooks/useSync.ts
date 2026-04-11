@@ -77,12 +77,13 @@ export function useSync() {
       created_at: string;
     }>('SELECT ayah_id, reflection_text, created_at FROM journal_entries ORDER BY created_at');
 
-    // reading_history: surah_id, ayah_id, read_date (last 500)
+    // reading_history: surah_id, ayah_id, verse_number, read_date (last 500)
     const history = await db.getAllAsync<{
       surah_id: number;
       ayah_id: number;
+      verse_number: number;
       read_date: string;
-    }>('SELECT surah_id, ayah_id, read_date FROM reading_history ORDER BY read_date DESC LIMIT 500');
+    }>('SELECT surah_id, ayah_id, verse_number, read_date FROM reading_history ORDER BY read_date DESC LIMIT 500');
 
     const snapshot = {
       // gamification
@@ -140,7 +141,7 @@ export function useSync() {
       learned_word_ids: arr<number>(raw.learned_word_ids),
       bookmark_ayah_ids: arr<number>(raw.bookmark_ayah_ids),
       journal_entries: arr<{ ayah_id: number; reflection_text: string; created_at: string }>(raw.journal_entries),
-      reading_history: arr<{ surah_id: number; ayah_id: number; read_date: string }>(raw.reading_history),
+      reading_history: arr<{ surah_id: number; ayah_id: number; verse_number: number; read_date: string }>(raw.reading_history),
     };
 
     console.log(
@@ -200,12 +201,20 @@ export function useSync() {
         }
       }
 
-      // reading_history — merge
+      // reading_history — merge (includes verse_number which is NOT NULL)
       for (const h of snap.reading_history) {
         if (!h || typeof h.ayah_id !== 'number') continue;
+        // Look up verse_number if not in snapshot (old snapshots lack it)
+        let verseNum = h.verse_number;
+        if (typeof verseNum !== 'number' || verseNum === 0) {
+          const ayah = await db.getFirstAsync<{ verse_number: number }>(
+            'SELECT verse_number FROM ayahs WHERE id = ?', [h.ayah_id],
+          );
+          verseNum = ayah?.verse_number ?? 0;
+        }
         await db.runAsync(
-          'INSERT OR IGNORE INTO reading_history (surah_id, ayah_id, read_date) VALUES (?, ?, ?)',
-          [h.surah_id ?? 0, h.ayah_id, h.read_date ?? ''],
+          'INSERT OR IGNORE INTO reading_history (surah_id, ayah_id, verse_number, read_date) VALUES (?, ?, ?, ?)',
+          [h.surah_id ?? 0, h.ayah_id, verseNum, h.read_date ?? ''],
         );
       }
     });
