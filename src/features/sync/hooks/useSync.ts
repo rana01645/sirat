@@ -85,6 +85,17 @@ export function useSync() {
       read_date: string;
     }>('SELECT surah_id, ayah_id, verse_number, read_date FROM reading_history ORDER BY read_date DESC LIMIT 500');
 
+    // daily_logs: recent logs (last 30 days)
+    const dailyLogs = await db.getAllAsync<{
+      date: string;
+      ayahs_read: number;
+      goal_target: number;
+      goal_completed: number;
+      coins_earned: number;
+      tafsirs_read: number;
+      notes_written: number;
+    }>('SELECT date, ayahs_read, goal_target, goal_completed, coins_earned, tafsirs_read, notes_written FROM daily_logs ORDER BY date DESC LIMIT 30');
+
     const snapshot = {
       // gamification
       ilm_coins: gam?.ilm_coins ?? 0,
@@ -103,6 +114,7 @@ export function useSync() {
       bookmark_ayah_ids: bookmarks.map((r) => r.ayah_id),
       journal_entries: journal,
       reading_history: history,
+      daily_logs: dailyLogs,
       // metadata
       synced_at: new Date().toISOString(),
     };
@@ -142,6 +154,7 @@ export function useSync() {
       bookmark_ayah_ids: arr<number>(raw.bookmark_ayah_ids),
       journal_entries: arr<{ ayah_id: number; reflection_text: string; created_at: string }>(raw.journal_entries),
       reading_history: arr<{ surah_id: number; ayah_id: number; verse_number: number; read_date: string }>(raw.reading_history),
+      daily_logs: arr<{ date: string; ayahs_read: number; goal_target: number; goal_completed: number; coins_earned: number; tafsirs_read: number; notes_written: number }>(raw.daily_logs),
     };
 
     console.log(
@@ -214,6 +227,19 @@ export function useSync() {
           'INSERT OR IGNORE INTO reading_history (surah_id, ayah_id, verse_number, read_date) VALUES (?, ?, ?, ?)',
           [h.surah_id ?? 0, h.ayah_id, verseNum, h.read_date ?? ''],
         );
+      }
+
+      // daily_logs — replace with cloud data
+      if (snap.daily_logs.length > 0) {
+        await db.runAsync('DELETE FROM daily_logs');
+        for (const log of snap.daily_logs) {
+          if (!log || !log.date) continue;
+          await db.runAsync(
+            `INSERT OR IGNORE INTO daily_logs (date, ayahs_read, goal_target, goal_completed, coins_earned, tafsirs_read, notes_written)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [log.date, num(log.ayahs_read), num(log.goal_target, 3), num(log.goal_completed), num(log.coins_earned), num(log.tafsirs_read), num(log.notes_written)],
+          );
+        }
       }
     });
 
