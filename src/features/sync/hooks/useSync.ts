@@ -172,36 +172,34 @@ export function useSync() {
          snap.current_surah_id, snap.current_ayah_id],
       );
 
-      // learned_words — merge
+      // learned_words — replace with cloud data
+      await db.runAsync('DELETE FROM learned_words');
       for (const wid of snap.learned_word_ids) {
         if (typeof wid === 'number') {
           await db.runAsync('INSERT OR IGNORE INTO learned_words (word_id) VALUES (?)', [wid]);
         }
       }
 
-      // bookmarks — merge
+      // bookmarks — replace with cloud data
+      await db.runAsync('DELETE FROM bookmarks');
       for (const aid of snap.bookmark_ayah_ids) {
         if (typeof aid === 'number') {
           await db.runAsync('INSERT OR IGNORE INTO bookmarks (ayah_id) VALUES (?)', [aid]);
         }
       }
 
-      // journal_entries — merge by ayah_id + created_at
+      // journal_entries — replace with cloud data
+      await db.runAsync('DELETE FROM journal_entries');
       for (const e of snap.journal_entries) {
         if (!e || typeof e.ayah_id !== 'number') continue;
-        const exists = await db.getFirstAsync<{ id: number }>(
-          'SELECT id FROM journal_entries WHERE ayah_id = ? AND created_at = ?',
-          [e.ayah_id, e.created_at ?? ''],
+        await db.runAsync(
+          'INSERT INTO journal_entries (ayah_id, reflection_text, created_at) VALUES (?, ?, ?)',
+          [e.ayah_id, e.reflection_text ?? '', e.created_at ?? new Date().toISOString()],
         );
-        if (!exists) {
-          await db.runAsync(
-            'INSERT INTO journal_entries (ayah_id, reflection_text, created_at) VALUES (?, ?, ?)',
-            [e.ayah_id, e.reflection_text ?? '', e.created_at ?? new Date().toISOString()],
-          );
-        }
       }
 
-      // reading_history — merge (includes verse_number which is NOT NULL)
+      // reading_history — replace with cloud data
+      await db.runAsync('DELETE FROM reading_history');
       for (const h of snap.reading_history) {
         if (!h || typeof h.ayah_id !== 'number') continue;
         // Look up verse_number if not in snapshot (old snapshots lack it)
