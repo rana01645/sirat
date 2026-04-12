@@ -38,6 +38,8 @@ export default function ReaderScreen() {
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
   const contextTafsir = useContextTafsir();
   const readAyahIds = useRef(new Set<number>());
+  const pendingScrollAyahId = useRef<number | null>(null);
+  const hasScrolledToResume = useRef(false);
   const { db } = useDatabaseContext();
 
   // Navigate to surah from route params (e.g. from Profile)
@@ -56,13 +58,16 @@ export default function ReaderScreen() {
     if (initialLoaded) return;
     (async () => {
       try {
-        // 1. Restore last surah (only if no route param)
+        // 1. Restore last surah + ayah (only if no route param)
         if (!params.surahId) {
-          const lastPos = await db.getFirstAsync<{ current_surah_id: number }>(
-            'SELECT current_surah_id FROM user_progress WHERE id = 1'
+          const lastPos = await db.getFirstAsync<{ current_surah_id: number; current_ayah_id: number }>(
+            'SELECT current_surah_id, current_ayah_id FROM user_progress WHERE id = 1'
           );
           if (lastPos?.current_surah_id && lastPos.current_surah_id >= 1 && lastPos.current_surah_id <= 114) {
             setCurrentSurahId(lastPos.current_surah_id);
+            if (lastPos.current_ayah_id && lastPos.current_ayah_id > 0) {
+              pendingScrollAyahId.current = lastPos.current_ayah_id;
+            }
           }
         }
 
@@ -85,6 +90,21 @@ export default function ReaderScreen() {
 
   const { surah, ayahs, tafsirs, isLoading, error } = useSurahReader(currentSurahId);
   const { surahs } = useSurahList();
+
+  // Scroll to last-read ayah once ayahs load
+  useEffect(() => {
+    if (!ayahs.length || !pendingScrollAyahId.current || hasScrolledToResume.current) return;
+    const targetId = pendingScrollAyahId.current;
+    const idx = ayahs.findIndex((a) => a.id === targetId);
+    if (idx > 0) {
+      hasScrolledToResume.current = true;
+      // Small delay to let FlatList measure
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({ index: idx, animated: false, viewOffset: 0 });
+      }, 100);
+    }
+    pendingScrollAyahId.current = null;
+  }, [ayahs]);
   const { recordAyahRead: recordToHistory, flush: flushHistory } = useReadingProgress();
   const audio = useAudioPlayer(ayahs);
   const { bookmarkedIds, isBookmarked, toggleBookmark } = useBookmarks();
@@ -189,6 +209,8 @@ export default function ReaderScreen() {
     flushHistory();
     setCurrentSurahId(id);
     setPickerVisible(false);
+    hasScrolledToResume.current = false;
+    pendingScrollAyahId.current = null;
     flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [flushHistory, audio]);
 
@@ -349,6 +371,12 @@ export default function ReaderScreen() {
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
+        onScrollToIndexFailed={(info) => {
+          // Retry after layout settles
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
+          }, 300);
+        }}
       />
 
       {/* Surah picker modal */}
