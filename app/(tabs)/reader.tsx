@@ -29,6 +29,7 @@ export default function ReaderScreen() {
   const params = useLocalSearchParams<{ surahId?: string }>();
   const [currentSurahId, setCurrentSurahId] = useState(1);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const [resumeAyahId, setResumeAyahId] = useState<number | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const flatListRef = useRef<FlatList<Ayah>>(null);
   const tafsirSheetRef = useRef<BottomSheetModalRef>(null);
@@ -38,8 +39,6 @@ export default function ReaderScreen() {
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
   const contextTafsir = useContextTafsir();
   const readAyahIds = useRef(new Set<number>());
-  const pendingScrollAyahId = useRef<number | null>(null);
-  const hasScrolledToResume = useRef(false);
   const { db } = useDatabaseContext();
 
   // Navigate to surah from route params (e.g. from Profile)
@@ -66,7 +65,7 @@ export default function ReaderScreen() {
           if (lastPos?.current_surah_id && lastPos.current_surah_id >= 1 && lastPos.current_surah_id <= 114) {
             setCurrentSurahId(lastPos.current_surah_id);
             if (lastPos.current_ayah_id && lastPos.current_ayah_id > 0) {
-              pendingScrollAyahId.current = lastPos.current_ayah_id;
+              setResumeAyahId(lastPos.current_ayah_id);
             }
           }
         }
@@ -91,21 +90,23 @@ export default function ReaderScreen() {
   const { surah, ayahs, tafsirs, isLoading, error } = useSurahReader(currentSurahId);
   const { surahs } = useSurahList();
 
-  // Scroll to last-read ayah once ayahs load
+  // Scroll to last-read ayah once both initialLoaded and correct ayahs are ready
   useEffect(() => {
-    if (!ayahs.length || !pendingScrollAyahId.current || hasScrolledToResume.current) return;
-    const targetId = pendingScrollAyahId.current;
-    const idx = ayahs.findIndex((a) => a.id === targetId);
+    if (!initialLoaded || !resumeAyahId || !ayahs.length) return;
+    const idx = ayahs.findIndex((a) => a.id === resumeAyahId);
     if (idx > 0) {
-      hasScrolledToResume.current = true;
-      pendingScrollAyahId.current = null;
-      // Small delay to let FlatList measure
+      // Clear first to prevent re-triggering
+      setResumeAyahId(null);
+      // Delay to let FlatList measure items
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: idx, animated: false, viewOffset: 0 });
-      }, 150);
+      }, 300);
+    } else if (idx === 0) {
+      // First ayah — no scroll needed
+      setResumeAyahId(null);
     }
-    // Don't clear pendingScrollAyahId if not found — ayahs for the correct surah may still be loading
-  }, [ayahs]);
+    // If idx === -1, ayahs for the correct surah haven't loaded yet — wait
+  }, [initialLoaded, resumeAyahId, ayahs]);
   const { recordAyahRead: recordToHistory, flush: flushHistory } = useReadingProgress();
   const audio = useAudioPlayer(ayahs);
   const { bookmarkedIds, isBookmarked, toggleBookmark } = useBookmarks();
@@ -210,8 +211,7 @@ export default function ReaderScreen() {
     flushHistory();
     setCurrentSurahId(id);
     setPickerVisible(false);
-    hasScrolledToResume.current = false;
-    pendingScrollAyahId.current = null;
+    setResumeAyahId(null);
     flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
   }, [flushHistory, audio]);
 
@@ -373,11 +373,14 @@ export default function ReaderScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
         onScrollToIndexFailed={(info) => {
-          // Retry after layout settles
+          // Scroll to the end of what's rendered, then retry
+          const offset = info.averageItemLength * info.index;
+          flatListRef.current?.scrollToOffset({ offset, animated: false });
           setTimeout(() => {
             flatListRef.current?.scrollToIndex({ index: info.index, animated: false });
-          }, 300);
+          }, 500);
         }}
+        initialNumToRender={20}
       />
 
       {/* Surah picker modal */}
