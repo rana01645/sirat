@@ -98,12 +98,13 @@ export default function ReaderScreen() {
     const idx = ayahs.findIndex((a) => a.id === targetId);
     if (idx > 0) {
       hasScrolledToResume.current = true;
+      pendingScrollAyahId.current = null;
       // Small delay to let FlatList measure
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({ index: idx, animated: false, viewOffset: 0 });
-      }, 100);
+      }, 150);
     }
-    pendingScrollAyahId.current = null;
+    // Don't clear pendingScrollAyahId if not found — ayahs for the correct surah may still be loading
   }, [ayahs]);
   const { recordAyahRead: recordToHistory, flush: flushHistory } = useReadingProgress();
   const audio = useAudioPlayer(ayahs);
