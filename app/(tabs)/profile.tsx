@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, type LayoutChangeEvent } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import { useBookmarks, type BookmarkedAyah } from '@/src/features/reader/hooks/u
 import { useAuth } from '@/src/shared/providers/AuthProvider';
 import { useSync } from '@/src/features/sync/hooks/useSync';
 import { FadeInView } from '@/src/shared/components/FadeInView';
+import type { BottomSheetModalRef } from '@/src/shared/components/BottomSheetModal';
+import { RankDetailSheet } from '@/src/features/gamification/components/RankDetailSheet';
 import { colors, fonts, spacing, STATUS_BAR_OFFSET } from '@/src/shared/lib/theme';
 
 export default function ProfileScreen() {
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const [quranTrackW, setQuranTrackW] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const rankSheetRef = useRef<BottomSheetModalRef>(null);
 
   // Reload data when tab is focused
   useFocusEffect(
@@ -92,6 +95,7 @@ export default function ProfileScreen() {
   }, [signOut]);
 
   return (
+    <>
     <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
 
@@ -221,8 +225,11 @@ export default function ProfileScreen() {
 
         {/* ── Rank Card ── */}
         <FadeInView delay={300} slideUp>
-          <View style={styles.rankCard}>
-            <Text style={styles.rankArabic}>{currentRank.titleArabic}</Text>
+          <Pressable onPress={() => rankSheetRef.current?.open()} style={styles.rankCard}>
+            <View style={styles.rankTapHint}>
+              <Text style={styles.rankArabic}>{currentRank.titleArabic}</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+            </View>
             <Text style={styles.rankEnglish}>{currentRank.titleEnglish}</Text>
             <Text style={styles.rankBengali}>{currentRank.titleBengali}</Text>
 
@@ -232,17 +239,19 @@ export default function ProfileScreen() {
                   <View style={[styles.progressFill, { width: trackW * progressToNextRank }]} />
                 </View>
                 <Text style={styles.progressText}>
-                  {ilmCoins} / {nextRank.minCoins} coins to {nextRank.titleEnglish}
+                  {ilmCoins} / {nextRank.minCoins} কয়েন — {nextRank.titleBengali}
                 </Text>
               </View>
             )}
-          </View>
+
+            <Text style={styles.rankTapLabel}>বিস্তারিত দেখুন ›</Text>
+          </Pressable>
         </FadeInView>
 
         {/* Motivation */}
         <FadeInView delay={400} slideUp>
           <Text style={styles.motivation}>
-            &ldquo;{currentRank.motivationText}&rdquo;
+            &ldquo;{currentRank.motivationTextBengali}&rdquo;
           </Text>
         </FadeInView>
 
@@ -308,6 +317,13 @@ export default function ProfileScreen() {
 
       </View>
     </ScrollView>
+
+    <RankDetailSheet
+      sheetRef={rankSheetRef}
+      currentRankId={currentRank.id}
+      ilmCoins={ilmCoins}
+    />
+    </>
   );
 }
 
@@ -587,9 +603,21 @@ const styles = StyleSheet.create({
   },
   rankArabic: {
     fontSize: 32,
-    textAlign: 'center',
     color: colors.nur[500],
     marginBottom: 6,
+  },
+  rankTapHint: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rankTapLabel: {
+    fontFamily: fonts.bengali,
+    fontSize: 12,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 10,
   },
   rankEnglish: {
     fontSize: 17,
